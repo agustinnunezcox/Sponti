@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import '../auth/auth_gate.dart';
 import '../theme/app_theme.dart';
 import '../widgets/dark_field.dart';
+import 'groups_screen.dart';
 import 'rating_screen.dart';
+import 'settings_screen.dart';
 import 'welcome_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -304,8 +306,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildMenu() {
     return Column(
       children: [
-        _menuItem(Icons.group_outlined, 'Mis grupos', () {}),
-        _menuItem(Icons.settings_outlined, 'Configuración', () {}),
+        _menuItem(Icons.group_outlined, 'Mis grupos', () {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const GroupsScreen()));
+        }),
+        _menuItem(Icons.settings_outlined, 'Configuración', () {
+          Navigator.push(context,
+              MaterialPageRoute(builder: (_) => const SettingsScreen()));
+        }),
         _menuItem(
           Icons.logout_rounded,
           'Cerrar sesión',
