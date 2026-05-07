@@ -25,6 +25,7 @@ class AppStrings {
   String get navProfile => 'Perfil';
 
   // ── HomeScreen ──────────────────────────────────────────────────────────────
+  String get todayLabel      => 'Hoy';
   String get noPlansTitle    => 'No hay planes por aquí';
   String get noPlansSubtitle => '¡Sé el primero en crear uno!';
 
@@ -86,6 +87,7 @@ class _EnStrings extends AppStrings {
   @override String get navMap     => 'Map';
   @override String get navProfile => 'Profile';
 
+  @override String get todayLabel      => 'Today';
   @override String get noPlansTitle    => 'No plans around here';
   @override String get noPlansSubtitle => 'Be the first to create one!';
 

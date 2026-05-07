@@ -81,7 +81,7 @@ class PlanCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Text(
-              '\$${plan.price.toStringAsFixed(0)} USD',
+              '\$5 USD',
               style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 11,
@@ -188,13 +188,13 @@ class PlanCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 12),
       decoration: BoxDecoration(
-        color: AppTheme.dark,
+        color: AppTheme.accent,
         borderRadius: BorderRadius.circular(12),
       ),
       alignment: Alignment.center,
-      child: Text(
-        'Join Plan · \$${plan.price.toStringAsFixed(0)} USD',
-        style: const TextStyle(
+      child: const Text(
+        'Reservar · \$5 USD',
+        style: TextStyle(
           color: Colors.white,
           fontSize: 14,
           fontWeight: FontWeight.w700,

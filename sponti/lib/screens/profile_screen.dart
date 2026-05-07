@@ -106,7 +106,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final hasPhone = _phone != null && _phone!.isNotEmpty;
 
     return SliverAppBar(
-      expandedHeight: hasPhone ? 230 : 210,
+      expandedHeight: hasPhone ? 240 : 220,
       pinned: true,
       automaticallyImplyLeading: false,
       backgroundColor: AppTheme.dark,

@@ -22,11 +22,20 @@ class _HomeScreenState extends State<HomeScreen> {
   List<String> _cities = ['All'];
   late Stream<List<Plan>> _plansStream;
   int _navIndex = 0;
+  late List<DateTime> _dates;
+  int _selectedDateIndex = 0;
+
+  static DateTime get _today {
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day);
+  }
 
   @override
   void initState() {
     super.initState();
-    _plansStream = _service.getTodayPlans(city: _selectedCity);
+    final today = _today;
+    _dates = List.generate(7, (i) => today.add(Duration(days: i)));
+    _plansStream = _service.getPlansForDate(date: _dates[0]);
   }
 
   void _updateCities(List<Plan> plans) {
@@ -41,10 +50,20 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  void _setDate(int index) {
+    setState(() {
+      _selectedDateIndex = index;
+      _selectedCity = 'All';
+      _cities = ['All'];
+      _plansStream = _service.getPlansForDate(date: _dates[index]);
+    });
+  }
+
   void _setCity(String city) {
     setState(() {
       _selectedCity = city;
-      _plansStream = _service.getTodayPlans(city: city);
+      _plansStream = _service.getPlansForDate(
+          date: _dates[_selectedDateIndex], city: city);
     });
   }
 
@@ -53,6 +72,15 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(builder: (_) => PlanDetailScreen(plan: plan)),
     );
+  }
+
+  String _formatDateTab(DateTime date, int index) {
+    if (index == 0) return AppStrings.current.todayLabel;
+    final isEn = AppStrings.localeNotifier.value.languageCode == 'en';
+    const esDays = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const enDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    final name = (isEn ? enDays : esDays)[date.weekday % 7];
+    return '$name ${date.day}';
   }
 
   @override
@@ -76,7 +104,7 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 8),
               child: Row(
                 children: [
                   const SpontiLogo(fontSize: 22),
@@ -101,6 +129,44 @@ class _HomeScreenState extends State<HomeScreen> {
                 ],
               ),
             ),
+            // Date tabs
+            SizedBox(
+              height: 44,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: _dates.length,
+                itemBuilder: (_, i) {
+                  final selected = i == _selectedDateIndex;
+                  return GestureDetector(
+                    onTap: () => _setDate(i),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      margin: const EdgeInsets.only(right: 8, bottom: 10),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? AppTheme.accent
+                            : Colors.white.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Text(
+                        _formatDateTab(_dates[i], i),
+                        style: TextStyle(
+                          color: selected ? Colors.white : Colors.white70,
+                          fontSize: 13,
+                          fontWeight: selected
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            // City tabs
             SizedBox(
               height: 44,
               child: ListView.builder(
@@ -119,15 +185,16 @@ class _HomeScreenState extends State<HomeScreen> {
                           horizontal: 16, vertical: 6),
                       decoration: BoxDecoration(
                         color: selected
-                            ? AppTheme.accent
-                            : Colors.white.withOpacity(0.1),
+                            ? Colors.white
+                            : Colors.white.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
                         city,
                         style: TextStyle(
-                          color:
-                              selected ? Colors.white : Colors.white60,
+                          color: selected
+                              ? AppTheme.dark
+                              : Colors.white60,
                           fontSize: 13,
                           fontWeight: selected
                               ? FontWeight.w700

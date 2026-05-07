@@ -5,13 +5,12 @@ class PlanService {
   final _db = FirebaseFirestore.instance;
   CollectionReference<Map<String, dynamic>> get _plans => _db.collection('Plans');
 
-  Stream<List<Plan>> getTodayPlans({String? city}) {
-    Query<Map<String, dynamic>> query = _plans;
-
-    if (city != null && city != 'All') {
-      query = query.where('city', isEqualTo: city);
-    }
-
+  Stream<List<Plan>> getPlansForDate({required DateTime date, String? city}) {
+    final startOfDay = DateTime(date.year, date.month, date.day);
+    final endOfDay = startOfDay.add(const Duration(days: 1));
+    final query = _plans
+        .where('time', isGreaterThanOrEqualTo: Timestamp.fromDate(startOfDay))
+        .where('time', isLessThan: Timestamp.fromDate(endOfDay));
     return query.snapshots().map((snap) {
       final plans = <Plan>[];
       for (final doc in snap.docs) {
@@ -19,8 +18,11 @@ class PlanService {
           plans.add(Plan.fromFirestore(doc));
         } catch (_) {}
       }
-      plans.sort((a, b) => a.time.compareTo(b.time));
-      return plans;
+      final filtered = (city != null && city != 'All')
+          ? plans.where((p) => p.city == city).toList()
+          : plans;
+      filtered.sort((a, b) => a.time.compareTo(b.time));
+      return filtered;
     });
   }
 

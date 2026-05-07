@@ -162,7 +162,7 @@ Cada plan debe tener EXACTAMENTE estos campos:
   "city": "${city.name}",
   "location": "punto de encuentro genérico y concreto (ej: 'Entrada del Parque Central', 'Metro Sol', 'Plaza Mayor', 'Puerto deportivo')",
   "time": "ISO 8601 con fecha ${date} y hora local razonable para el plan (ej: ${date}T17:00:00Z)",
-  "price": 0,
+  "price": 5,
   "status": "pending",
   "joinedCount": 0,
   "minPeople": 3,
@@ -371,8 +371,8 @@ async function runDailyPlanGeneration() {
     results.errors.push({ source: "cleanup", error: e.message });
   }
 
-  // 2. For each of the next 7 days, generate plans if none exist yet
-  for (let offset = 0; offset < 7; offset++) {
+  // 2. For each of the next 8 days (today + 7 ahead), generate plans if none exist yet
+  for (let offset = 0; offset < 8; offset++) {
     const dayStart = new Date(today);
     dayStart.setUTCDate(today.getUTCDate() + offset);
     const dayEnd = new Date(dayStart);
