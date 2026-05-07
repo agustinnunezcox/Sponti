@@ -1,17 +1,21 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../auth/auth_gate.dart';
 import '../theme/app_theme.dart';
+import '../widgets/dark_field.dart';
 import 'rating_screen.dart';
 import 'welcome_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
 
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
   static const _interests = [
-    '⚽ Fútbol',
-    '🎵 Música',
-    '🍺 Drinks',
-    '🌮 Comer',
-    '🏕️ Aventura',
+    '⚽ Fútbol', '🎵 Música', '🍺 Drinks', '🌮 Comer', '🏕️ Aventura',
   ];
 
   static const _recentPlans = [
@@ -19,6 +23,51 @@ class ProfileScreen extends StatelessWidget {
     _RecentPlan('Jazz en el Parque', 4, 'Música', '🎵'),
     _RecentPlan('Tacos Night', 5, 'Comer', '🌮'),
   ];
+
+  String? _phone;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPhone();
+  }
+
+  Future<void> _loadPhone() async {
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(kUserId)
+          .get();
+      if (mounted) {
+        setState(() => _phone = doc.data()?['phone'] as String?);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _editPhone() async {
+    final ctrl = TextEditingController(text: _phone ?? '');
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppTheme.dark,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (ctx) => _PhoneEditSheet(
+        controller: ctrl,
+        onSave: (phone) async {
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(kUserId)
+              .set({'phone': phone}, SetOptions(merge: true));
+          if (mounted) setState(() => _phone = phone);
+        },
+      ),
+    );
+
+    ctrl.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,11 +84,11 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   _buildStats(),
                   const SizedBox(height: 24),
-                  _buildInterests(context),
+                  _buildInterests(),
                   const SizedBox(height: 24),
-                  _buildRecentPlans(context),
+                  _buildRecentPlans(),
                   const SizedBox(height: 24),
-                  _buildMenu(context),
+                  _buildMenu(),
                   const SizedBox(height: 20),
                 ],
               ),
@@ -51,8 +100,10 @@ class ProfileScreen extends StatelessWidget {
   }
 
   SliverAppBar _buildHeader() {
+    final hasPhone = _phone != null && _phone!.isNotEmpty;
+
     return SliverAppBar(
-      expandedHeight: 210,
+      expandedHeight: hasPhone ? 230 : 210,
       pinned: true,
       automaticallyImplyLeading: false,
       backgroundColor: AppTheme.dark,
@@ -83,6 +134,35 @@ class ProfileScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   const Text('Santiago, Chile',
                       style: TextStyle(color: Colors.white54, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  GestureDetector(
+                    onTap: _editPhone,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          hasPhone
+                              ? Icons.phone_outlined
+                              : Icons.add_circle_outline,
+                          color: hasPhone
+                              ? Colors.white54
+                              : AppTheme.accent,
+                          size: 14,
+                        ),
+                        const SizedBox(width: 5),
+                        Text(
+                          hasPhone ? _phone! : 'Agregar teléfono WhatsApp',
+                          style: TextStyle(
+                            color: hasPhone ? Colors.white60 : AppTheme.accent,
+                            fontSize: 13,
+                            fontWeight: hasPhone
+                                ? FontWeight.w400
+                                : FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -93,8 +173,8 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildStats() {
-    return Row(
-      children: const [
+    return const Row(
+      children: [
         _StatCard('12', 'Planes'),
         SizedBox(width: 12),
         _StatCard('4.8 ⭐', 'Rating'),
@@ -104,7 +184,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildInterests(BuildContext context) {
+  Widget _buildInterests() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -151,7 +231,7 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildRecentPlans(BuildContext context) {
+  Widget _buildRecentPlans() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -177,7 +257,7 @@ class ProfileScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(14),
                   boxShadow: [
                     BoxShadow(
-                        color: Colors.black.withOpacity(0.04),
+                        color: Colors.black.withValues(alpha: 0.04),
                         blurRadius: 8,
                         offset: const Offset(0, 2))
                   ],
@@ -221,13 +301,12 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildMenu(BuildContext context) {
+  Widget _buildMenu() {
     return Column(
       children: [
-        _menuItem(context, Icons.group_outlined, 'Mis grupos', () {}),
-        _menuItem(context, Icons.settings_outlined, 'Configuración', () {}),
+        _menuItem(Icons.group_outlined, 'Mis grupos', () {}),
+        _menuItem(Icons.settings_outlined, 'Configuración', () {}),
         _menuItem(
-          context,
           Icons.logout_rounded,
           'Cerrar sesión',
           () => Navigator.pushAndRemoveUntil(
@@ -242,7 +321,6 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _menuItem(
-    BuildContext context,
     IconData icon,
     String label,
     VoidCallback onTap, {
@@ -259,7 +337,7 @@ class ProfileScreen extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2))
           ],
@@ -285,6 +363,105 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
+// ── Bottom sheet de edición de teléfono ────────────────────────────────────────
+
+class _PhoneEditSheet extends StatefulWidget {
+  final TextEditingController controller;
+  final Future<void> Function(String phone) onSave;
+
+  const _PhoneEditSheet({required this.controller, required this.onSave});
+
+  @override
+  State<_PhoneEditSheet> createState() => _PhoneEditSheetState();
+}
+
+class _PhoneEditSheetState extends State<_PhoneEditSheet> {
+  bool _saving = false;
+
+  Future<void> _save() async {
+    final phone = widget.controller.text.trim();
+
+    if (phone.isNotEmpty && !RegExp(r'^\+\d{8,15}$').hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Formato inválido. Ej: +56912345678'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _saving = true);
+    try {
+      await widget.onSave(phone);
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      debugPrint('[ProfileScreen] Error guardando teléfono: $e');
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          24, 24, 24, MediaQuery.of(context).viewInsets.bottom + 32),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Teléfono WhatsApp',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Formato internacional: +56912345678',
+            style: TextStyle(color: Colors.white54, fontSize: 13),
+          ),
+          const SizedBox(height: 20),
+          DarkField(
+            controller: widget.controller,
+            hint: '+56912345678',
+            keyboardType: TextInputType.phone,
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: _saving ? null : _save,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accent,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppTheme.accent.withValues(alpha: 0.5),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+              ),
+              child: _saving
+                  ? const SizedBox(
+                      height: 20,
+                      width: 20,
+                      child: CircularProgressIndicator(
+                          color: Colors.white, strokeWidth: 2.5),
+                    )
+                  : const Text('Guardar',
+                      style: TextStyle(
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Widgets auxiliares ────────────────────────────────────────────────────────
+
 class _StatCard extends StatelessWidget {
   final String value;
   final String label;
@@ -300,7 +477,7 @@ class _StatCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-                color: Colors.black.withOpacity(0.04),
+                color: Colors.black.withValues(alpha: 0.04),
                 blurRadius: 8,
                 offset: const Offset(0, 2))
           ],

@@ -1,4 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../auth/auth_gate.dart';
 import '../theme/app_theme.dart';
 import '../widgets/dark_field.dart';
 import '../widgets/sponti_logo.dart';
@@ -13,11 +15,13 @@ class RegisterScreen extends StatefulWidget {
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
-  final _name = TextEditingController();
-  final _email = TextEditingController();
+  final _name     = TextEditingController();
+  final _email    = TextEditingController();
   final _password = TextEditingController();
-  final _city = TextEditingController();
-  bool _obscure = true;
+  final _city     = TextEditingController();
+  final _phone    = TextEditingController();
+  bool _obscure  = true;
+  bool _loading  = false;
 
   @override
   void dispose() {
@@ -25,10 +29,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _email.dispose();
     _password.dispose();
     _city.dispose();
+    _phone.dispose();
     super.dispose();
   }
 
-  void _register() {
+  Future<void> _register() async {
+    final phone = _phone.text.trim();
+
+    if (phone.isNotEmpty && !RegExp(r'^\+\d{8,15}$').hasMatch(phone)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Formato inválido. Usa +[código de país][número], ej: +56912345678'),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+      return;
+    }
+
+    setState(() => _loading = true);
+
+    try {
+      final data = <String, dynamic>{
+        'name':  _name.text.trim(),
+        'email': _email.text.trim(),
+        'city':  _city.text.trim(),
+        if (phone.isNotEmpty) 'phone': phone,
+      };
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(kUserId)
+          .set(data, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('[Register] Error guardando usuario: $e');
+    }
+
+    if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (_) => const InterestsScreen()),
@@ -91,22 +126,41 @@ class _RegisterScreenState extends State<RegisterScreen> {
               ),
               const SizedBox(height: 14),
               DarkField(controller: _city, hint: 'Ciudad'),
-              const SizedBox(height: 28),
+              const SizedBox(height: 14),
+              DarkField(
+                controller: _phone,
+                hint: 'Teléfono WhatsApp (ej: +56912345678)',
+                keyboardType: TextInputType.phone,
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Tu número se usa para notificarte cuando un plan se confirma.',
+                style: TextStyle(color: Colors.white38, fontSize: 11),
+              ),
+              const SizedBox(height: 24),
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _register,
+                  onPressed: _loading ? null : _register,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppTheme.accent,
                     foregroundColor: Colors.white,
+                    disabledBackgroundColor: AppTheme.accent.withValues(alpha: 0.5),
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
-                  child: const Text('Crear cuenta',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
+                  child: _loading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2.5),
+                        )
+                      : const Text('Crear cuenta',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.w700)),
                 ),
               ),
               const SizedBox(height: 28),
@@ -116,8 +170,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Text('o continúa con',
-                        style:
-                            TextStyle(color: Colors.white38, fontSize: 13)),
+                        style: TextStyle(color: Colors.white38, fontSize: 13)),
                   ),
                   Expanded(child: Divider(color: Colors.white12)),
                 ],
@@ -126,7 +179,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: _register,
+                  onPressed: _loading ? null : _register,
                   icon: const Text('G',
                       style: TextStyle(
                           fontSize: 18,
