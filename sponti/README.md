@@ -98,6 +98,15 @@ stripeCustomerId: string?
 interests: string[]
 ```
 
+### `groups/{groupId}`
+```
+name: string
+emoji: string                  // emoji representativo del grupo
+members: string[]              // userIds
+createdBy: string              // userId del creador
+createdAt: Timestamp
+```
+
 ---
 
 ## Setup local
@@ -127,6 +136,55 @@ firebase functions:log --only generateDailyPlansScheduled --project sponti-44aa0
 
 ---
 
+## Pantallas
+
+| Pantalla | Descripción |
+|---|---|
+| `OnboardingScreen` | Bienvenida inicial (primera vez) |
+| `WelcomeScreen` | Login / registro |
+| `RegisterScreen` | Formulario: nombre, email, contraseña, ciudad, teléfono WhatsApp → guarda en `users/{userId}` |
+| `InterestsScreen` | Selección de intereses post-registro → guarda en `users/{userId}.interests` |
+| `HomeScreen` | Lista de planes del día con filtro por ciudad |
+| `PlanDetailScreen` | Detalle del plan + flujo de unirse con Stripe |
+| `MapScreen` | Vista de planes en mapa |
+| `ProfileScreen` | Perfil del usuario con teléfono editable; acceso a Mis Grupos y Configuración |
+| `GroupsScreen` | **Mis Grupos** + **Mis Planes** (ver abajo) |
+| `SettingsScreen` | **Configuración** completa (ver abajo) |
+| `RatingScreen` | Valorar un plan completado |
+
+### GroupsScreen
+
+Dos tabs accesibles desde el menú del perfil:
+
+**Tab "Grupos"**
+- Lista de grupos del usuario (Firestore: `groups` donde `members arrayContains kUserId`)
+- Cada tarjeta muestra emoji, nombre, número de integrantes y stack de avatares
+- FAB `+` → bottom sheet para crear grupo con selector de emoji y nombre
+- Al tocar un grupo → bottom sheet con lista de integrantes, botón Invitar y botón "Ver planes" (navega a HomeScreen)
+
+**Tab "Mis Planes"**
+- Lista de planes en los que el usuario se unió (Firestore: `Plans` donde `joinedUsers arrayContains kUserId`)
+- Cada tarjeta muestra categoría, título, ciudad, fecha, barra de progreso del quorum y badge de estado:
+  - 🟠 `Esperando quorum` — no se ha alcanzado el mínimo de personas
+  - 🟡 `Confirmando…` — pagos en proceso de captura
+  - 🟢 `Confirmado` — quorum alcanzado, pagos capturados
+- Si está confirmado: botón **WhatsApp** que abre `wa.me/?text=...` con el link del plan
+
+### SettingsScreen
+
+Accesible desde el menú del perfil:
+
+| Sección | Funcionalidad |
+|---|---|
+| **Perfil** | Edita nombre y ciudad; avatar con inicial del nombre; guardado en `users/{userId}` |
+| **Intereses** | Grid de 18 intereses seleccionables (igual que onboarding); guardado en `users/{userId}.interests` |
+| **WhatsApp** | Edita teléfono con validación E.164; guardado en `users/{userId}.phone` |
+| **Notificaciones** | Toggle Switch persistido en SharedPreferences |
+| **Idioma** | Selector Español / English persistido en SharedPreferences |
+| **Cuenta** | Cerrar sesión (→ WelcomeScreen) · Eliminar cuenta (AlertDialog de confirmación + delete en Firestore) |
+
+---
+
 ## Flujo de usuario
 
 ```
@@ -136,7 +194,9 @@ OnboardingScreen
   → InterestsScreen  (guarda interests + datos en users/{userId})
   → HomeScreen       (lista de planes del día filtrada por ciudad)
        → PlanDetailScreen → unirse (Stripe) → confirmJoinPlan
-ProfileScreen        (muestra y permite editar el teléfono WhatsApp)
+ProfileScreen
+  → GroupsScreen     (Mis Grupos / Mis Planes)
+  → SettingsScreen   (perfil, intereses, teléfono, prefs, cuenta)
 ```
 
 ---
