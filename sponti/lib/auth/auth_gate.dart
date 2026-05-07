@@ -22,18 +22,13 @@ class _AuthGateState extends State<AuthGate> {
   }
 
   Future<void> _route() async {
-    print('[AuthGate] Consultando users/$kUserId en Firestore...');
     try {
       final doc = await FirebaseFirestore.instance
           .collection('users')
           .doc(kUserId)
           .get();
-      print('[AuthGate] Documento existe: ${doc.exists}');
-      print('[AuthGate] Data completa: ${doc.data()}');
       final raw = (doc.data() ?? {})['interests'];
-      print('[AuthGate] Campo interests (raw): $raw (tipo: ${raw.runtimeType})');
       final interests = (raw as List<dynamic>?) ?? [];
-      print('[AuthGate] interests.length = ${interests.length} → ruta: ${interests.isNotEmpty ? "HomeScreen" : "InterestsScreen"}');
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
@@ -44,8 +39,7 @@ class _AuthGateState extends State<AuthGate> {
         ),
         (route) => false,
       );
-    } catch (e, st) {
-      print('[AuthGate] ERROR: $e\n$st');
+    } catch (_) {
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,

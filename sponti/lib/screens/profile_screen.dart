@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import '../auth/auth_gate.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/dark_field.dart';
 import 'groups_screen.dart';
@@ -153,7 +154,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(width: 5),
                         Text(
-                          hasPhone ? _phone! : 'Agregar teléfono WhatsApp',
+                          hasPhone ? _phone! : AppStrings.current.addWhatsapp,
                           style: TextStyle(
                             color: hasPhone ? Colors.white60 : AppTheme.accent,
                             fontSize: 13,
@@ -187,20 +188,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildInterests() {
+    final s = AppStrings.current;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text('Mis intereses',
+            Text(s.myInterests,
                 style: TextStyle(
                     fontSize: 17,
                     fontWeight: FontWeight.w700,
                     color: AppTheme.textPrimary)),
             GestureDetector(
               onTap: () {},
-              child: const Text('Editar',
+              child: Text(s.editLabel,
                   style: TextStyle(
                       color: AppTheme.accent,
                       fontSize: 13,
@@ -234,10 +236,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildRecentPlans() {
+    final s = AppStrings.current;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Planes recientes',
+        Text(s.recentPlans,
             style: TextStyle(
                 fontSize: 17,
                 fontWeight: FontWeight.w700,
@@ -304,19 +307,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildMenu() {
+    final s = AppStrings.current;
     return Column(
       children: [
-        _menuItem(Icons.group_outlined, 'Mis grupos', () {
+        _menuItem(Icons.group_outlined, s.menuGroups, () {
           Navigator.push(context,
               MaterialPageRoute(builder: (_) => const GroupsScreen()));
         }),
-        _menuItem(Icons.settings_outlined, 'Configuración', () {
+        _menuItem(Icons.settings_outlined, s.menuSettings, () {
           Navigator.push(context,
               MaterialPageRoute(builder: (_) => const SettingsScreen()));
         }),
         _menuItem(
           Icons.logout_rounded,
-          'Cerrar sesión',
+          s.menuSignOut,
           () => Navigator.pushAndRemoveUntil(
             context,
             MaterialPageRoute(builder: (_) => const WelcomeScreen()),

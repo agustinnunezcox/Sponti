@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../auth/auth_gate.dart';
+import '../l10n/app_strings.dart';
 import '../theme/app_theme.dart';
 import '../widgets/dark_field.dart';
 import 'welcome_screen.dart';
@@ -146,6 +147,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _setLanguage(String lang) async {
     final p = await SharedPreferences.getInstance();
     await p.setString('language', lang);
+    AppStrings.setLanguage(lang);
     setState(() => _language = lang);
   }
 
@@ -158,23 +160,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _deleteAccount() async {
+    final s = AppStrings.current;
     final ok = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: const Color(0xFF1A1A2E),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20)),
-        title: const Text('Eliminar cuenta',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
-        content: const Text(
-          'Esta acción no se puede deshacer. Todos tus datos serán eliminados permanentemente.',
-          style: TextStyle(color: Colors.white60, height: 1.4),
+        title: Text(s.deleteAccount,
+            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+        content: Text(
+          s.deleteAccountBody,
+          style: const TextStyle(color: Colors.white60, height: 1.4),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancelar',
-                style: TextStyle(color: Colors.white54)),
+            child: Text(s.cancel,
+                style: const TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
@@ -184,8 +187,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             ),
-            child: const Text('Eliminar',
-                style: TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(s.delete,
+                style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -215,9 +218,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final s = AppStrings.current;
     return Scaffold(
       backgroundColor: AppTheme.dark,
-      appBar: AppBar(title: const Text('Configuración')),
+      appBar: AppBar(title: Text(s.settingsTitle)),
       body: _loadingUser
           ? const Center(
               child:
@@ -225,17 +229,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
           : ListView(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
               children: [
-                _buildProfileSection(),
+                _buildProfileSection(s),
                 _sectionGap(),
-                _buildInterestsSection(),
+                _buildInterestsSection(s),
                 _sectionGap(),
-                _buildPhoneSection(),
+                _buildPhoneSection(s),
                 _sectionGap(),
-                _buildNotificationsSection(),
+                _buildNotificationsSection(s),
                 _sectionGap(),
-                _buildLanguageSection(),
+                _buildLanguageSection(s),
                 _sectionGap(),
-                _buildAccountSection(),
+                _buildAccountSection(s),
               ],
             ),
     );
@@ -243,13 +247,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Sections ─────────────────────────────────────────────────────────────────
 
-  Widget _buildProfileSection() {
+  Widget _buildProfileSection(AppStrings s) {
     final initial = _nameCtrl.text.trim().isEmpty
         ? 'U'
         : _nameCtrl.text.trim()[0].toUpperCase();
 
     return _Section(
-      title: 'PERFIL',
+      title: s.sectionProfile,
       child: Column(children: [
         // Avatar
         GestureDetector(
@@ -281,7 +285,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         DarkField(controller: _cityCtrl, hint: 'Ciudad'),
         const SizedBox(height: 16),
         _saveButton(
-          label: 'Guardar perfil',
+          label: s.saveProfile,
           loading: _savingProfile,
           onPressed: _saveProfile,
         ),
@@ -289,15 +293,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildInterestsSection() {
+  Widget _buildInterestsSection(AppStrings s) {
     return _Section(
-      title: 'INTERESES',
+      title: s.sectionInterests,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Selecciona todo lo que te gusta hacer',
+          Text(s.interestsHint,
               style:
-                  TextStyle(color: Colors.white54, fontSize: 13)),
+                  const TextStyle(color: Colors.white54, fontSize: 13)),
           const SizedBox(height: 16),
           Wrap(
             spacing: 8,
@@ -345,7 +349,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           const SizedBox(height: 16),
           _saveButton(
-            label: 'Guardar intereses',
+            label: s.saveInterests,
             loading: _savingInterests,
             onPressed: _selectedInterests.isEmpty
                 ? null
@@ -356,16 +360,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildPhoneSection() {
+  Widget _buildPhoneSection(AppStrings s) {
     return _Section(
-      title: 'WHATSAPP',
+      title: s.sectionWhatsapp,
       child: Column(children: [
-        const Align(
+        Align(
           alignment: Alignment.centerLeft,
           child: Text(
-            'Tu número recibe notificaciones cuando un plan se confirma.',
+            s.phoneHint,
             style:
-                TextStyle(color: Colors.white54, fontSize: 13),
+                const TextStyle(color: Colors.white54, fontSize: 13),
           ),
         ),
         const SizedBox(height: 14),
@@ -376,7 +380,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         const SizedBox(height: 14),
         _saveButton(
-          label: 'Guardar teléfono',
+          label: s.savePhone,
           loading: _savingPhone,
           onPressed: _savePhone,
         ),
@@ -384,21 +388,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildNotificationsSection() {
+  Widget _buildNotificationsSection(AppStrings s) {
     return _Section(
-      title: 'NOTIFICACIONES',
+      title: s.sectionNotifications,
       child: _ToggleRow(
-        label: 'Activar notificaciones',
-        subtitle: 'Recibe alertas de planes y quorum',
+        label: s.notificationsLabel,
+        subtitle: s.notificationsSubtitle,
         value: _notifications,
         onChanged: _setNotifications,
       ),
     );
   }
 
-  Widget _buildLanguageSection() {
+  Widget _buildLanguageSection(AppStrings s) {
     return _Section(
-      title: 'IDIOMA',
+      title: s.sectionLanguage,
       child: Column(
         children: ['Español', 'English'].map((lang) {
           final sel = _language == lang;
@@ -442,19 +446,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildAccountSection() {
+  Widget _buildAccountSection(AppStrings s) {
     return _Section(
-      title: 'CUENTA',
+      title: s.sectionAccount,
       child: Column(children: [
         _accountButton(
           icon: Icons.logout_rounded,
-          label: 'Cerrar sesión',
+          label: s.menuSignOut,
           onTap: _signOut,
         ),
         const SizedBox(height: 10),
         _accountButton(
           icon: Icons.delete_outline_rounded,
-          label: 'Eliminar cuenta',
+          label: s.deleteAccount,
           onTap: _deleteAccount,
           isDestructive: true,
         ),

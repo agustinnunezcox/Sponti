@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_strings.dart';
 import '../models/plan.dart';
 import '../services/plan_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/plan_card.dart';
 import '../widgets/sponti_logo.dart';
+import 'map_screen.dart';
 import 'plan_detail_screen.dart';
 import 'profile_screen.dart';
 
@@ -60,7 +62,7 @@ class _HomeScreenState extends State<HomeScreen> {
       body: _navIndex == 0
           ? Column(children: [_buildHeader(), Expanded(child: _buildPlanList())])
           : _navIndex == 1
-              ? _buildMapTab()
+              ? const MapTab()
               : const ProfileScreen(),
       bottomNavigationBar: _buildBottomNav(),
     );
@@ -172,43 +174,28 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEmpty() {
-    return const Center(
+    final s = AppStrings.current;
+    return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Text('🌍', style: TextStyle(fontSize: 52)),
-          SizedBox(height: 16),
-          Text('No hay planes por aquí',
-              style: TextStyle(
+          const Text('🌍', style: TextStyle(fontSize: 52)),
+          const SizedBox(height: 16),
+          Text(s.noPlansTitle,
+              style: const TextStyle(
                   fontSize: 17,
                   fontWeight: FontWeight.w700,
                   color: AppTheme.textPrimary)),
-          SizedBox(height: 6),
-          Text('¡Sé el primero en crear uno!',
-              style: TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
+          const SizedBox(height: 6),
+          Text(s.noPlansSubtitle,
+              style: const TextStyle(fontSize: 14, color: AppTheme.textSecondary)),
         ],
       ),
     );
   }
 
-  Widget _buildMapTab() {
-    return const SafeArea(
-      child: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.map_outlined, size: 60, color: AppTheme.textSecondary),
-            SizedBox(height: 16),
-            Text('Mapa próximamente',
-                style:
-                    TextStyle(fontSize: 16, color: AppTheme.textSecondary)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  BottomNavigationBar _buildBottomNav() {
+BottomNavigationBar _buildBottomNav() {
+    final s = AppStrings.current;
     return BottomNavigationBar(
       currentIndex: _navIndex,
       onTap: (i) => setState(() => _navIndex = i),
@@ -221,13 +208,13 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 12,
       selectedFontSize: 11,
       unselectedFontSize: 11,
-      items: const [
+      items: [
         BottomNavigationBarItem(
-            icon: Icon(Icons.flash_on_rounded), label: 'Plans'),
+            icon: const Icon(Icons.flash_on_rounded), label: s.navPlans),
         BottomNavigationBarItem(
-            icon: Icon(Icons.map_outlined), label: 'Map'),
+            icon: const Icon(Icons.map_outlined), label: s.navMap),
         BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline), label: 'Profile'),
+            icon: const Icon(Icons.person_outline), label: s.navProfile),
       ],
     );
   }

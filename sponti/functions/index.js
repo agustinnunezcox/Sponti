@@ -47,21 +47,45 @@ const CITIES = [
 
 // ─── API helpers ──────────────────────────────────────────────────────────────
 
-async function getWeather(city) {
+async function getWeather(city, date) {
   const key = cleanEnv("OPENWEATHER_API_KEY");
   if (!key) return { description: "despejado", temp: 20, isOutdoor: true, icon: "Clear" };
 
-  const url = `https://api.openweathermap.org/data/2.5/weather?lat=${city.lat}&lon=${city.lon}&appid=${key}&units=metric`;
+  const todayStr = new Date().toISOString().split("T")[0];
+  const badWeatherIcons = ["Rain", "Drizzle", "Thunderstorm", "Snow"];
+
+  if (date === todayStr) {
+    // Current weather for today
+    const url = `https://api.openweathermap.org/data/2.5/weather?lat=${city.lat}&lon=${city.lon}&appid=${key}&units=metric`;
+    const res = await fetchWithTimeout(url, {}, 15_000);
+    if (!res.ok) throw new Error(`OpenWeatherMap ${res.status}`);
+    const d = await res.json();
+    const icon = d.weather[0].main;
+    return {
+      description: d.weather[0].description,
+      temp: Math.round(d.main.temp),
+      isOutdoor: !badWeatherIcons.includes(icon),
+      icon,
+    };
+  }
+
+  // 5-day forecast for future dates (3h intervals)
+  const url = `https://api.openweathermap.org/data/2.5/forecast?lat=${city.lat}&lon=${city.lon}&appid=${key}&units=metric`;
   const res = await fetchWithTimeout(url, {}, 15_000);
-  if (!res.ok) throw new Error(`OpenWeatherMap ${res.status}`);
+  if (!res.ok) throw new Error(`OpenWeatherMap forecast ${res.status}`);
   const d = await res.json();
 
-  const icon = d.weather[0].main;
-  const badWeather = ["Rain", "Drizzle", "Thunderstorm", "Snow"].includes(icon);
+  // Pick the midday entry for the target date, or the first available entry
+  const entry = d.list.find(e => e.dt_txt.startsWith(date + " 12:"))
+    || d.list.find(e => e.dt_txt.startsWith(date));
+
+  if (!entry) return { description: "despejado", temp: 20, isOutdoor: true, icon: "Clear" };
+
+  const icon = entry.weather[0].main;
   return {
-    description: d.weather[0].description,
-    temp: Math.round(d.main.temp),
-    isOutdoor: !badWeather,
+    description: entry.weather[0].description,
+    temp: Math.round(entry.main.temp),
+    isOutdoor: !badWeatherIcons.includes(icon),
     icon,
   };
 }
@@ -248,20 +272,20 @@ async function savePlan(plan) {
 
 // ─── Core: generate plans for all cities ─────────────────────────────────────
 
-async function deletePreviousDayPlans() {
+// Delete plans whose event time is in the past (time < start of today)
+async function deletePastPlans() {
   const startOfToday = new Date();
   startOfToday.setUTCHours(0, 0, 0, 0);
 
   const snapshot = await db.collection("Plans")
-    .where("createdAt", "<", Timestamp.fromDate(startOfToday))
+    .where("time", "<", Timestamp.fromDate(startOfToday))
     .get();
 
   if (snapshot.empty) {
-    console.log("No previous plans to delete");
+    console.log("No past plans to delete");
     return 0;
   }
 
-  // Batch deletes are capped at 500 ops each
   let batch = db.batch();
   let count = 0;
   const commits = [];
@@ -277,59 +301,102 @@ async function deletePreviousDayPlans() {
   if (count % 500 !== 0) commits.push(batch.commit());
 
   await Promise.all(commits);
-  console.log(`Deleted ${count} previous plans`);
+  console.log(`Deleted ${count} past plans`);
   return count;
 }
 
-async function runDailyPlanGeneration() {
-  const date = new Date().toISOString().split("T")[0];
-  const results = { date, created: 0, deleted: 0, errors: [], plans: [] };
+// Returns the ISO date string (YYYY-MM-DD) for today + offsetDays
+function dateOffset(offsetDays) {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  d.setUTCDate(d.getUTCDate() + offsetDays);
+  return d.toISOString().split("T")[0];
+}
 
-  // Delete plans from previous days before generating new ones
-  try {
-    results.deleted = await deletePreviousDayPlans();
-  } catch (e) {
-    console.error("Error deleting previous plans:", e);
-    results.errors.push({ city: "cleanup", source: "Firestore", error: e.message });
-  }
-
-  // Fetch global sports events once
+// Generate plans for all cities on a specific date
+async function generateForDate(dateStr, results) {
   let sportsEvents = [];
   try {
-    sportsEvents = await getSportsEventsGlobal(date);
-    console.log(`Sports events fetched: ${sportsEvents.length}`);
+    sportsEvents = await getSportsEventsGlobal(dateStr);
+    console.log(`[${dateStr}] Sports events: ${sportsEvents.length}`);
   } catch (e) {
-    results.errors.push({ city: "global", source: "TheSportsDB", error: e.message });
+    results.errors.push({ date: dateStr, source: "TheSportsDB", error: e.message });
   }
 
-  // Process cities sequentially to respect OpenAI rate limits
   for (const city of CITIES) {
     try {
-      console.log(`Processing ${city.name}...`);
+      console.log(`[${dateStr}] Processing ${city.name}...`);
 
       const [weather, freeEvents] = await Promise.all([
-        getWeather(city).catch(e => {
-          results.errors.push({ city: city.name, source: "OpenWeatherMap", error: e.message });
+        getWeather(city, dateStr).catch(e => {
+          results.errors.push({ date: dateStr, city: city.name, source: "OpenWeatherMap", error: e.message });
           return { description: "despejado", temp: 20, isOutdoor: true, icon: "Clear" };
         }),
-        getFreeEvents(city, date).catch(e => {
-          results.errors.push({ city: city.name, source: "PredictHQ", error: e.message });
+        getFreeEvents(city, dateStr).catch(e => {
+          results.errors.push({ date: dateStr, city: city.name, source: "PredictHQ", error: e.message });
           return [];
         }),
       ]);
 
-      const plans = await generatePlansWithGPT(city, weather, sportsEvents, freeEvents, date);
+      const plans = await generatePlansWithGPT(city, weather, sportsEvents, freeEvents, dateStr);
 
       for (const plan of plans) {
         const id = await savePlan(plan);
         results.created++;
-        results.plans.push({ id, title: plan.title, city: plan.city, category: plan.category });
+        results.plans.push({ id, title: plan.title, city: plan.city, date: dateStr });
       }
 
-      console.log(`${city.name}: ${plans.length} plans created`);
+      console.log(`[${dateStr}] ${city.name}: ${plans.length} plans created`);
     } catch (e) {
-      console.error(`Error processing ${city.name}:`, e);
-      results.errors.push({ city: city.name, source: "generation", error: e.message });
+      console.error(`[${dateStr}] Error processing ${city.name}:`, e);
+      results.errors.push({ date: dateStr, city: city.name, source: "generation", error: e.message });
+    }
+  }
+}
+
+async function runDailyPlanGeneration() {
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const results = {
+    date: today.toISOString().split("T")[0],
+    created: 0, deleted: 0, skipped: 0, errors: [], plans: [],
+  };
+
+  // 1. Delete plans whose event time has already passed
+  try {
+    results.deleted = await deletePastPlans();
+  } catch (e) {
+    console.error("Error deleting past plans:", e);
+    results.errors.push({ source: "cleanup", error: e.message });
+  }
+
+  // 2. For each of the next 7 days, generate plans if none exist yet
+  for (let offset = 0; offset < 7; offset++) {
+    const dayStart = new Date(today);
+    dayStart.setUTCDate(today.getUTCDate() + offset);
+    const dayEnd = new Date(dayStart);
+    dayEnd.setUTCDate(dayStart.getUTCDate() + 1);
+    const dateStr = dayStart.toISOString().split("T")[0];
+
+    try {
+      const existing = await db.collection("Plans")
+        .where("time", ">=", Timestamp.fromDate(dayStart))
+        .where("time", "<",  Timestamp.fromDate(dayEnd))
+        .limit(1)
+        .get();
+
+      if (!existing.empty) {
+        console.log(`[${dateStr}] Already has plans — skipping`);
+        results.skipped++;
+        continue;
+      }
+
+      console.log(`[${dateStr}] No plans found — generating for all cities`);
+      await generateForDate(dateStr, results);
+    } catch (e) {
+      console.error(`[${dateStr}] Error checking/generating:`, e);
+      results.errors.push({ date: dateStr, source: "generation", error: e.message });
     }
   }
 
@@ -393,7 +460,7 @@ exports.generateDailyPlans = onRequest(
   {
     region: "europe-west1",
     invoker: "public",
-    timeoutSeconds: 540,
+    timeoutSeconds: 3600,
     memory: "512MiB",
     secrets: ["MAKE_SECRET", "OPENAI_API_KEY", "OPENWEATHER_API_KEY", "PREDICTHQ_API_KEY", "SPORTSDB_API_KEY"],
   },
@@ -421,7 +488,7 @@ exports.generateDailyPlansScheduled = onSchedule(
     timeZone: "UTC",
     region: "europe-west1",
     memory: "512MiB",
-    timeoutSeconds: 540,
+    timeoutSeconds: 1800,
     secrets: ["OPENAI_API_KEY", "OPENWEATHER_API_KEY", "PREDICTHQ_API_KEY", "SPORTSDB_API_KEY"],
   },
   async () => {

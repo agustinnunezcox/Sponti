@@ -13,17 +13,11 @@ class PlanService {
     }
 
     return query.snapshots().map((snap) {
-      print('DOCUMENTOS RECIBIDOS: ${snap.docs.length}');
-      for (var doc in snap.docs) {
-        print('DOC: ${doc.id} - ${doc.data()}');
-      }
       final plans = <Plan>[];
       for (final doc in snap.docs) {
         try {
           plans.add(Plan.fromFirestore(doc));
-        } catch (e, st) {
-          print('ERROR en fromFirestore [${doc.id}]: $e\n$st');
-        }
+        } catch (_) {}
       }
       plans.sort((a, b) => a.time.compareTo(b.time));
       return plans;
